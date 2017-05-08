@@ -22,7 +22,6 @@ function prio()
 	system_load("window.lua")(); -- window creation
 	system_load("menu.lua")(); -- global menus
 	system_load("extrun.lua")(); -- helper functions for window spawn
-	system_load("autorun.lua")(); -- whatever the user needs to have setup
 	system_load("shaders.lua")(); -- eyecandy
 	prioactions = system_load("actions.lua")(); -- bindable actions
 	priobindings = system_load("keybindings.lua")(); -- keysym+mods -> actions
@@ -99,6 +98,7 @@ function prio()
 
 -- rebuild config now that we have access to everything
 	prio_update_density(VPPCM);
+	system_load("autorun.lua")(); -- whatever the user needs to have setup
 end
 
 function system_message(str)

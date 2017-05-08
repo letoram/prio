@@ -14,6 +14,15 @@ void main(){
 ]],
 };
 
+shaders.luma = {
+frag = [[
+]]
+};
+
+shaders.luma_nored = {
+
+};
+
 shaders.background = {};
 
 shaders.selection = {

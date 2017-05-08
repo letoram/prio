@@ -1,53 +1,51 @@
---
--- User- defined actions to run on startup.
--- Functions:
---
--- prio_terminal(x, y, w, h) - spawn a terminal
--- prio_target_window(target, config, x, y, w, h, opttbl)
--- prio_static_image(resource, x, y, w, h, opttbl)
--- prio_listen(key, keep_offline, x, y, w, h, opttbl)
---
--- constants:
--- VRESW, VRESH (current display canvas dimensions)
--- VPPCM (current display density)
---
--- opttbl fields:
---  no_decor       (boolean) - draw decoration or not
---  tab_block      (boolean) - don't setup / add tabs
---  select_block   (boolean) - prevent the window from being selected for input
---  shader         (string)  - reference to key in shaders.lua
---  order          (number)  - control Z order
---  flip_y         (boolean) - invert Y axis
---  delete_protect (boolean) - prevent delete/hide operations from working
---  no_delete      (boolean) - if the client connection dies, keep the surface
---  effect_hook    (funcref) - override the priocfg.effect_hook(wnd)
---
-local w1 = 0.2 * VRESW;
-local h1 = 0.2 * VRESH;
-local x1 = VRESW-w1;
-local y1 = VRESH-h1;
-
--- custom 'background listener' hack, when we get a connection on key,
--- disable the shader and just show/stretch to background and then revert
--- back on termination
-local function listen(key)
-	target_alloc(key, function(source, status)
+-- animated bonfire
+local bonfire = launch_decode("wallpaper/kindling.mp4", "loop",
+	function(source, status)
 		if (status.kind == "resized") then
-			image_sharestorage(source, priobg);
-			image_shader(priobg, shader_get("canvas_normal"));
-		elseif (status.kind == "terminated") then
-			delete_image(source);
-			image_shader(priobg, shader_get("background"));
-			listen(key);
+			show_image(source);
+			resize_image(source, status.width, status.height);
+			move_image(source, VRESW - 0.8 * status.width, VRESH - status.height);
 		end
-	end);
-end
--- uncomment to enable the background-mapped connection point
--- listen("background");
+	end
+);
+image_mask_set(bonfire, MASK_UNPICKABLE);
+image_texfilter(bonfire, FILTER_BILINEAR);
+suspend_target(bonfire);
+image_shader(bonfire, shader_get("luma_nored"));
 
--- prio_terminal(50, 50, 400, 200,
---	{no_decor = true, tab_block = true, delete_protect = true, no_delete = true});
--- prio_static_image("frame.png", x1, y1, w1, h1);
--- prio_listen("image", true, x1 + 20, y1 + 20, w1 * 0.2, h1 * 0.2, {order = 200});
--- prio_listen("frame", false, x1 + 20, y1 + 20, w1 * 0.2, h1 * 0.2, {order = 3});
--- prio_target_window("Super Nintendo", "Super Mario World", 0.1*VRESW, 0.1*VRESH, 50, 50);
+-- bonfire double-click capture, will pause/supend animation
+local dblclick = null_surface(64, 64);
+show_image(dblclick);
+KINDLED = false;
+
+mouse_addlistener(dblclick, {
+	dblclick = function()
+		print("doubleclick the fire!");
+		if (not KINDLED) then
+			resume_target(bonfire);
+			image_shader(bonfire, shader_get("canvas_normal"));
+			KINDLED = true;
+--FIXME: light up all the windows as well
+--FIXME: sample bonfire into window decorations
+--FIXME: set slight translucency on terminals
+		else
+			suspend_target(bonfire);
+			image_shader(bonfire, shader_get("luma_nored"));
+			KINDLED = false;
+--FIXME: grey all the windows as well
+-- disable terminal translucency
+		end
+	end
+},
+
+-- for delete, grey + you-die fade
+-- for spawn, darker popup border, different font, ...
+-- for hide, fade -> animate to pedistal
+
+local autores = VRES_AUTORES;
+VRES_AUTORES = function(w, h, vppcm, flags, source)
+	autores(w, h, vppcm, flags, source);
+	local status = image_surface_resolve(bonfire);
+	move_image(bonfire, VRESW - 0.8 * status.width, VRESH - status.height);
+end
+

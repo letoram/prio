@@ -1,5 +1,18 @@
 local shaders = {};
 
+shaders.canvas_grey = {
+frag = [[
+uniform sampler2D map_tu0;
+varying vec2 texco;
+
+void main(){
+	vec3 col = texture2D(map_tu0, texco).rgb;
+	float luma = 0.2126 * col.r + 0.7152 * col.g + 0.0722 * col.b;
+	gl_FragColor = vec4(luma, luma, luma, 1.0);
+}
+]]
+};
+
 shaders.canvas_normal = {
 frag = [[
 uniform sampler2D map_tu0;
@@ -14,13 +27,123 @@ void main(){
 ]],
 };
 
+shaders.vgradient = {
+frag = [[
+uniform vec3 obj_col;
+varying vec2 texco;
+void main()
+{
+	float v = 1.0 + (1.0 - texco.t*texco.t) * 0.3;
+	gl_FragColor = vec4(obj_col.rgb * v, 1.0);
+}
+]]
+};
+
 shaders.luma = {
 frag = [[
+uniform sampler2D map_tu0;
+uniform float obj_opacity;
+varying vec2 texco;
+
+void main()
+{
+	vec3 col = texture2D(map_tu0, texco).rgb;
+	float luma = 0.2126 * col.r + 0.7152 * col.g + 0.0722 * col.b;
+	gl_FragColor = vec4(luma, luma, luma, obj_opacity);
+}
+]]
+};
+
+-- one pass gaussian + grayscale if not kindled
+shaders.bonfire_led = {
+frag = [[
+	uniform sampler2D map_tu0;
+	uniform float obj_opacity;
+	uniform vec2 obj_output_sz;
+	varying vec2 texco;
+
+void main()
+{
+	vec4 sum = vec4(0.0);
+	float blur = 1.0 / obj_output_sz.x;
+	sum += texture2D(map_tu0, vec2(texco.x - 4.0 * blur, texco.y)) * 0.05;
+	sum += texture2D(map_tu0, vec2(texco.x - 3.0 * blur, texco.y)) * 0.09;
+	sum += texture2D(map_tu0, vec2(texco.x - 2.0 * blur, texco.y)) * 0.12;
+	sum += texture2D(map_tu0, vec2(texco.x - 1.0 * blur, texco.y)) * 0.15;
+	sum += texture2D(map_tu0, vec2(texco.x - 0.0 * blur, texco.y)) * 0.16;
+	sum += texture2D(map_tu0, vec2(texco.x + 1.0 * blur, texco.y)) * 0.15;
+	sum += texture2D(map_tu0, vec2(texco.x + 2.0 * blur, texco.y)) * 0.12;
+	sum += texture2D(map_tu0, vec2(texco.x + 3.0 * blur, texco.y)) * 0.09;
+	sum += texture2D(map_tu0, vec2(texco.x + 4.0 * blur, texco.y)) * 0.05;
+	sum += texture2D(map_tu0, vec2(texco.x, texco.y - 4.0 * blur)) * 0.05;
+	sum += texture2D(map_tu0, vec2(texco.x, texco.y - 3.0 * blur)) * 0.09;
+	sum += texture2D(map_tu0, vec2(texco.x, texco.y - 2.0 * blur)) * 0.12;
+	sum += texture2D(map_tu0, vec2(texco.x, texco.y - 1.0 * blur)) * 0.15;
+	sum += texture2D(map_tu0, vec2(texco.x, texco.y - 0.0 * blur)) * 0.16;
+	sum += texture2D(map_tu0, vec2(texco.x, texco.y + 1.0 * blur)) * 0.15;
+	sum += texture2D(map_tu0, vec2(texco.x, texco.y + 2.0 * blur)) * 0.12;
+	sum += texture2D(map_tu0, vec2(texco.x, texco.y + 3.0 * blur)) * 0.09;
+	sum += texture2D(map_tu0, vec2(texco.x, texco.y + 4.0 * blur)) * 0.05;
+	sum *= 0.7;
+	sum.a = 1.0;
+
+	float luma = 0.0126 * sum.r + 0.7152 * sum.g + 0.0722 * sum.b;
+	vec4 bw = vec4(luma, luma, luma, 1.0);
+
+	gl_FragColor = vec4(mix(bw, sum, obj_opacity));
+}
+]]
+};
+
+shaders.bonfire = {
+frag = [[
+uniform sampler2D map_tu0;
+uniform float obj_opacity;
+varying vec2 texco;
+
+void main()
+{
+	vec3 refc = texture2D(map_tu0, vec2(0., 0.)).rgb;
+	vec3 col = texture2D(map_tu0, texco).rgb;
+	col = col - refc;
+	gl_FragColor = vec4(col.r, col.g, col.b, obj_opacity);
+}
+]]
+};
+
+shaders.mouse = {
+frag = [[
+uniform sampler2D map_tu0;
+uniform vec3 color;
+varying vec2 texco;
+
+void main()
+{
+	vec4 col = texture2D(map_tu0, texco);
+	if (distance(col.rgb, vec3(0.0, 0.0, 0.0)) > 0.01){
+		gl_FragColor = vec4(color.r, color.g, color.b, col.a);
+	}
+	else
+		gl_FragColor = vec4(0.0, 0.0, 0.0, 0.0);
+}
 ]]
 };
 
 shaders.luma_nored = {
+frag = [[
+uniform sampler2D map_tu0;
+uniform float obj_opacity;
+varying vec2 texco;
 
+void main()
+{
+	vec3 refc = texture2D(map_tu0, vec2(0., 0.)).rgb;
+	vec3 col = texture2D(map_tu0, texco).rgb;
+	col = col - refc;
+	float luma = 0.0126 * col.r + 0.7152 * col.g + 0.0722 * col.b;
+	gl_FragColor = vec4(luma, luma, luma, obj_opacity);
+}
+]]
 };
 
 shaders.background = {};

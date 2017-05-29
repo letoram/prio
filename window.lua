@@ -766,7 +766,7 @@ function prio_menu_spawn(list, x, y, ctx)
 		unpack(priocfg.menu_background_color));
 	link_image(vid, csurf);
 	image_inherit_order(vid, true);
-	order_image(vid, 1);
+	order_image(vid, 2);
 	move_image(vid, bw, bw);
 	show_image(vid);
 	image_mask_set(vid, MASK_UNPICKABLE);
@@ -778,7 +778,7 @@ function prio_menu_spawn(list, x, y, ctx)
 	blend_image(cursor, priocfg.menu_select_alpha);
 	link_image(cursor, vid);
 	image_inherit_order(cursor, true);
-	order_image(cursor, 1);
+	order_image(cursor, -1);
 	image_mask_set(cursor, MASK_UNPICKABLE);
 
 	local fullw = w + 2 * bw;

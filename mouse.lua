@@ -1107,6 +1107,10 @@ function mouse_switch_cursor(label)
 	mouse_custom_cursor(ct);
 end
 
+function mouse_cursors()
+	return cursors;
+end
+
 function mouse_hide()
 	if (mstate.native) then
 		mouse_switch_cursor(nil);

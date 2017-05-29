@@ -37,8 +37,7 @@ function prio()
 	kbd_repeat(priocfg.repeat_period, priocfg.repeat_delay);
 
 -- we'll always "overdraw" when updating due to the background image
-	rendertarget_noclear(WORLDID, true);
-	priobg = fill_surface(VRESW, VRESH, 64, 64, 64);
+	priobg = fill_surface(VRESW, VRESH, 0, 0, 0);
 	image_shader(priobg, shader_get("background"));
 	show_image(priobg);
 
@@ -124,6 +123,11 @@ end
 
 -- two modes, one with normal forwarding etc. one with a region-select
 function prio_normal_input(iotbl)
+	if (iotbl.status) then
+		print("status");
+		for k,v in pairs(iotbl) do print(k, v); end
+	end
+
 	if (iotbl.mouse) then
 		mouse_iotbl_input(iotbl);
 		return;

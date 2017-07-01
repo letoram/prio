@@ -1,5 +1,5 @@
 --
--- Copyright 2014-2016, Björn Ståhl
+-- Copyright 2014-2017, Björn Ståhl
 -- License: 3-Clause BSD.
 -- Reference: http://arcan-fe.com
 --
@@ -93,6 +93,7 @@ local mstate = {
 -- tables of event_handlers to check for match when
 	handlers = mouse_handlers,
 	eventtrace = false,
+	blocked = false,
 	btns = {},
 	btns_clock = {},
 	btns_bounce = {},
@@ -351,10 +352,6 @@ end
 
 function mouse_state()
 	return mstate;
-end
-
-function mouse_toxy(x, y, time)
--- disable all event handlers and visibly move cursor to position
 end
 
 function mouse_destroy()
@@ -785,8 +782,17 @@ function mouse_reveal_hook(state)
 	end
 end
 
+function mouse_over(vid)
+	for i,v in ipairs(mstate.cur_over) do
+		if (v == vid) then
+			return true;
+		end
+	end
+end
+
 local mid_c = 0;
 local mid_v = {0, 0};
+
 function mouse_iotbl_input(iotbl)
 	if (iotbl.digital) then
 		mouse_button_input(iotbl.subid, iotbl.active);
@@ -795,9 +801,9 @@ function mouse_iotbl_input(iotbl)
 
 	if (iotbl.relative) then
 		if (iotbl.subid == 0) then
-			mouse_input(iotbl.samples[2], 0);
+			mouse_input(iotbl.samples[1], 0);
 		else
-			mouse_input(0, iotbl.samples[2]);
+			mouse_input(0, iotbl.samples[1]);
 		end
 	else
 		mid_v[iotbl.subid+1] = iotbl.samples[1];
@@ -807,6 +813,30 @@ function mouse_iotbl_input(iotbl)
 			mid_c = 0;
 		end
 	end
+end
+
+if (API_VERSION_MAJOR == 0 and API_VERSION_MINOR < 11) then
+mouse_iotbl_input = function(iotbl)
+	if (iotbl.digital) then
+		mouse_button_input(iotbl.subid, iotbl.active);
+		return;
+	end
+
+	if (iotbl.relative) then
+		if (iotbl.subid == 0) then
+			mouse_input(iotbl.samples[2], 0);
+		else
+			mouse_input(0, iotbl.samples[1]);
+		end
+	else
+		mid_v[iotbl.subid+1] = iotbl.samples[1];
+		mid_c = mid_c + 1;
+		if (mid_c == 2) then
+			mouse_absinput(mid_v[1], mid_v[2]);
+			mid_c = 0;
+		end
+	end
+end
 end
 
 function mouse_input(x, y, state, noinp)
@@ -923,7 +953,18 @@ function mouse_input(x, y, state, noinp)
 	mstate.in_handler = false;
 end
 
-mouse_motion = mouse_input;
+local mouse_input_ref = mouse_input;
+function mouse_block()
+	mouse_input = function() end
+	mstate.blocked = true;
+	mouse_hide();
+end
+
+function mouse_unblock()
+	mouse_input = mouse_input_ref;
+	mstate.blocked = false;
+	mouse_show();
+end
 
 --
 -- triggers callbacks in tbl when desired events are triggered.
@@ -1081,6 +1122,8 @@ function mouse_custom_cursor(ct)
 	mstate.y = mstate.y + hsdy;
 	mstate.hotspot_x = ct.hotspot_x;
 	mstate.hotspot_y = ct.hotspot_y;
+	mstate.active_label = "";
+	mstate.custom_cursor = ct;
 end
 
 function mouse_switch_cursor(label)
@@ -1112,7 +1155,8 @@ function mouse_hide()
 		mouse_switch_cursor(nil);
 	else
 		instant_image_transform(mstate.cursor);
-		blend_image(mstate.cursor, 0.0, 20, INTERP_EXPOUT);
+		blend_image(mstate.cursor, 0.0,
+			mstate.revmask and 0 or 20, INTERP_EXPOUT);
 	end
 end
 
@@ -1125,7 +1169,15 @@ function mouse_hidemask(st)
 	mstate.revmask = st;
 end
 
+function mouse_blocked()
+	return mstate.blocked;
+end
+
 function mouse_show()
+	if (mstate.blocked) then
+		return;
+	end
+
 	if (mstate.native) then
 		mouse_switch_cursor(mstate.active_label);
 	else
@@ -1203,6 +1255,45 @@ function mouse_querytarget(rt)
 	end
 end
 
+-- needed when we temporary want to undo custom cursor and locked
+-- target, but need to return to it shortly and don't trigger any of
+-- the usual events
+function mouse_state_save()
+	mstate.save = {
+		label = mstate.active_label,
+		lockvid = mstate.lockvid,
+		lockfun = mstate.lockfun,
+		lockwarp = mstate.warp,
+		lockstate = mstate.lockstate,
+		active_label = mstate.active_label,
+		custom_cursor = mstate.custom_cursor
+	};
+	mstate.save.x, mstate.save.y = mouse_xy();
+	mouse_lockto();
+	mstate.active_label = nil;
+	mouse_switch_cursor("default");
+end
+
+function mouse_state_restore(warp)
+	if (not mstate.save) then
+		return;
+	end
+	local save = mstate.save;
+	mstate.save = nil;
+
+	if (valid_vid(save.lockvid)) then
+		mouse_lockto(save.lockvid, save.lockfun, save.lockwarp, save.lockstate);
+	end
+
+	if (warp) then
+		mouse_absinput_masked(save.x, save.y, true);
+	end
+
+	if (save.custom_cursor) then
+		mouse_custom_cursor(save.custom_cursor);
+	end
+end
+
 -- vid will be the object that will be promoted to cursor order
 -- and used to indicate the selected region. it's drawing setup
 -- should match the desired behavior (so for pattern region rather
@@ -1216,10 +1307,9 @@ function mouse_select_begin(vid, constrain)
 		mouse_select_end();
 	end
 
-	local x, y = mouse_xy();
 	mstate.in_select = {
-		x = x,
-		y = y,
+		x = mstate.x,
+		y = mstate.y,
 		vid = vid,
 		hidden = mstate.hidden,
 		autodelete = {},
@@ -1251,7 +1341,7 @@ function mouse_select_begin(vid, constrain)
 	image_inherit_order(vid, true);
 	order_image(vid, -1);
 	resize_image(vid, 1, 1);
-	move_image(vid, x, y);
+	move_image(vid, mstate.x, mstate.y);
 	table.insert(mstate.in_select.autodelete, vid);
 
 -- normal constrain- handler will deal with clamping etc.

@@ -123,11 +123,6 @@ end
 
 -- two modes, one with normal forwarding etc. one with a region-select
 function prio_normal_input(iotbl)
-	if (iotbl.status) then
-		print("status");
-		for k,v in pairs(iotbl) do print(k, v); end
-	end
-
 	if (iotbl.mouse) then
 		mouse_iotbl_input(iotbl);
 		return;

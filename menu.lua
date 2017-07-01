@@ -34,7 +34,7 @@ local system = {
 {
 	label = "Record",
 	name = "record",
-	eval = function() return false; end,
+--	eval = function() return false; end,
 	handler = function()
 		prioactions.record();
 	end

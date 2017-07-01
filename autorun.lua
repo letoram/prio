@@ -161,7 +161,7 @@ local function unkindle(ctx)
 	ctx.kindled = false;
 end
 
-mouse_addlistener({
+local mouse_ctx = {
 	name = "bonfire",
 	kindled = true,
 	own = function(ctx, vid)
@@ -174,7 +174,8 @@ mouse_addlistener({
 			unkindle(ctx);
 		end
 	end
-}, {"dblclick"});
+};
+mouse_addlistener(mouse_ctx, {"dblclick"});
 
 -- listen to a pipe, read cpu-use, mem-use, disk-free
 -- map to stamina, health, humanity and intensity

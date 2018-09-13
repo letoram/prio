@@ -15,10 +15,10 @@ priohidden = {};
 CLIPBOARD_MESSAGE = "";
 
 function prio()
-	priosym = system_load("symtable.lua")(); -- keyboard translation
+	priosym = system_load("builtin/keyboard.lua")(); -- keyboard translation
 	priocfg = system_load("config.lua")();
 	system_load("uifx.lua")(); -- shadows
-	system_load("mouse.lua")(); -- mouse gesture abstraction etc.
+	system_load("builtin/mouse.lua")(); -- mouse gesture abstraction etc.
 	system_load("window.lua")(); -- window creation
 	system_load("menu.lua")(); -- global menus
 	system_load("extrun.lua")(); -- helper functions for window spawn
